@@ -175,7 +175,9 @@ public:
   friend Impl;
   friend DocResult;
   friend Value;
+  /// \cond  Note: Ignore by doxygen
   friend internal::Schema_detail;
+  /// \endcond
 };
 
 
@@ -392,7 +394,6 @@ public:
 
 
   template<typename T>
-  PUBLIC_API
   T get() const;
 
   //@}
@@ -739,6 +740,9 @@ try
   : common::Value(val)
 {}
 CATCH_AND_WRAP
+
+template <>
+PUBLIC_API common::Value Value::get<common::Value>() const;
 
 template<>
 inline
