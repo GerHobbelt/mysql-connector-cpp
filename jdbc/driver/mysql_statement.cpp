@@ -46,6 +46,7 @@
 #include <cppconn/resultset.h>
 #include <cppconn/warning.h>
 #include "mysql_connection.h"
+#include "mysql_connection_data.h"
 #include "mysql_statement.h"
 #include "mysql_resultset.h"
 #include "mysql_warning.h"
@@ -53,7 +54,6 @@
 #include "nativeapi/native_resultset_wrapper.h"
 
 #include "mysql_debug.h"
-#include "cppconn/version_info.h"
 
 namespace sql
 {
@@ -105,41 +105,41 @@ MySQL_Statement::do_query(const ::sql::SQLString &q)
     throw sql::InvalidInstanceException("Connection has been closed");
   }
 
-  if (!MySQL_Telemetry::otel_libs_loaded() && 
-     connection->getOpenTelemetryMode() == enum_opentelemetry_mode::OTEL_REQUIRED
-     )
+  if (!connection->telemetry_disabled())
   {
-    throw sql::SQLException("OPT_OPENTELEMETRY is set to OTEL_REQUIRED, "
-      "but OpenTelemetry libraries are not loaded");
-  }
-
-  if (MySQL_Telemetry::otel_libs_loaded() &&
-      connection->getOpenTelemetryMode() != enum_opentelemetry_mode::OTEL_DISABLED &&
-      !attrbind.attribNameExists("traceparent"))
-  {
-    telemetry.reset(new MySQL_Telemetry("SQL statement"));
-    auto span_id = telemetry->get_span_id();
-    auto trace_id = telemetry->get_trace_id();
-    attrbind.setQueryAttrString("traceparent", "00-" + trace_id + "-" + span_id + "-00");
+    trace_span = telemetry::mk_span(this);
   }
   
-  if(attrbind.nrAttr() != 0)
+  try 
   {
-    proxy_p->query_attr(attrbind.nrAttr(), attrbind.getNames(), attrbind.getBinds());
+    if(attrbind.nrAttr() != 0)
+    {
+      proxy_p->query_attr(attrbind.nrAttr(), attrbind.getNames(), attrbind.getBinds());
+    }
+
+    if (proxy_p->query(q) && proxy_p->errNo()) {
+      CPP_ERR_FMT("Error during proxy->query : %d:(%s) %s", proxy_p->errNo(), proxy_p->sqlstate().c_str(), proxy_p->error().c_str());
+      
+      sql::mysql::util::throwSQLException(*proxy_p.get());
+    }
   }
-
-  if (proxy_p->query(q) && proxy_p->errNo()) {
-    CPP_ERR_FMT("Error during proxy->query : %d:(%s) %s", proxy_p->errNo(), proxy_p->sqlstate().c_str(), proxy_p->error().c_str());
-    if (telemetry)
-      telemetry->set_status(MySQL_Telemetry::Status::ERROR, proxy_p->error().c_str());
-
-    sql::mysql::util::throwSQLException(*proxy_p.get());
+  catch(sql::SQLException &e)
+  {
+    telemetry::set_error(trace_span, e.what());
+    throw;
   }
 
   warningsCount= proxy_p->warning_count();
   warningsHaveBeenLoaded= false;
 }
 /* }}} */
+
+
+telemetry::Span_ptr
+MySQL_Statement::get_conn_span()
+{
+  return connection->intern->trace_span;
+}
 
 
 /* {{{ MySQL_Statement::get_resultset() -I- */
