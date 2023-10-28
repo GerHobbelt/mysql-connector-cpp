@@ -31,6 +31,7 @@
 #include "mysql_telemetry.h"
 #include "mysql_connection.h"
 #include "mysql_statement.h"
+#include "mysql_prepared_statement.h"
 
 #include <cppconn/sqlstring.h>
 #include <cppconn/version_info.h>
@@ -39,8 +40,13 @@
 #include <optional>
 #include <string>
 #include <vector>
+#include <thread>
 
-
+#ifdef _WIN32
+#include <windows.h>
+#else
+#include <pthread.h>
+#endif
 
 namespace sql
 {
@@ -58,12 +64,12 @@ namespace telemetry
     auto tracer = trace::Provider::GetTracerProvider()->GetTracer(
       "MySQL Connector/C++", MYCPPCONN_DM_VERSION
     );
-  
+
     trace::StartSpanOptions opts;
     opts.kind = trace::SpanKind::kClient;
 
     auto span
-    = link ? tracer->StartSpan(name, {}, {{*link, {}}},  opts) 
+    = link ? tracer->StartSpan(name, {}, {{*link, {}}},  opts)
            : tracer->StartSpan(name, opts);
 
     span->SetAttribute("db.system", "mysql");
@@ -71,15 +77,69 @@ namespace telemetry
   }
 
 
-  Span_ptr 
-  Telemetry_base<MySQL_Connection>::mk_span(MySQL_Connection *conn)
+  Span_ptr
+  Telemetry_base<MySQL_Connection>::mk_span(MySQL_Connection*, const char*)
   {
     return telemetry::mk_span("connection");
   }
 
 
+  /*
+    Note: See [1] for relevant OTel semantic conventions for connection-level
+    attributes.
+
+    [1] https://github.com/open-telemetry/semantic-conventions/blob/main/docs/database/database-spans.md#connection-level-attributes
+  */
+
+  void
+  Telemetry_base<MySQL_Connection>::set_attribs(
+    MySQL_Connection* con, 
+    MySQL_Uri::Host_data& endpoint, 
+    sql::ConnectOptionsMap& options
+  )
+  {
+    if (disabled(con) || !span)
+      return;
+
+    std::string transport;
+    switch(endpoint.Protocol())
+    {
+      case NativeAPI::PROTOCOL_TCP:
+        transport = "tcp";
+        // TODO: If we can somehow detect IPv6 connections then "network.type"
+        // should be set to "ipv6"
+        span->SetAttribute("network.type", "ipv4");
+        break;
+      case NativeAPI::PROTOCOL_SOCKET:
+        transport = "socket";
+        span->SetAttribute("network.type", "unix");
+      case NativeAPI::PROTOCOL_PIPE:
+        transport = "pipe";
+        break;
+      default:
+        transport = "other";
+    }
+
+    span->SetAttribute("network.transport", transport);
+    span->SetAttribute("server.address", endpoint.Host().c_str());
+    
+    /*
+      Note: `endpoint.hasPort()` alone is not good because it tells whether
+      in a multi-host sceanrio a non-default port was specified for the chosen
+      endpoint. We want to send the port attribute also when
+      no endpint-specific port was given but user set the "global" port value
+      which is used for all hosts (which is a more typical scenario).
+    */
+
+    if (options.count(OPT_PORT) || endpoint.hasPort())
+    {
+      span->SetAttribute("server.port", endpoint.Port());
+    }
+  }
+
+
   template<>
-  bool 
+  bool
   Telemetry_base<MySQL_Statement>::disabled(MySQL_Statement *stmt) const
   {
     return stmt->conn_telemetry().disabled(stmt->connection);
@@ -89,10 +149,11 @@ namespace telemetry
     Creating statement span: we link it to the connection span and we also
     set "traceparent" attribute unless user already set it.
   */
- 
+
   template<>
-  Span_ptr 
-  Telemetry_base<MySQL_Statement>::mk_span(MySQL_Statement *stmt)
+  Span_ptr
+  Telemetry_base<MySQL_Statement>::mk_span(MySQL_Statement *stmt,
+    const char*)
   {
     auto span = telemetry::mk_span("SQL statement",
       stmt->conn_telemetry().span->GetContext()
@@ -113,6 +174,29 @@ namespace telemetry
         "traceparent", "00-" + trace_id + "-" + span_id + "-00"
       );
     }
+    span->SetAttribute("db.user", stmt->connection->getCurrentUser().c_str());
+
+    return span;
+  }
+
+  template<>
+  bool
+  Telemetry_base<MySQL_Prepared_Statement>::disabled(MySQL_Prepared_Statement *stmt) const
+  {
+    return stmt->conn_telemetry().disabled(stmt->connection);
+  }
+
+
+  template<>
+  Span_ptr
+  Telemetry_base<MySQL_Prepared_Statement>::mk_span(MySQL_Prepared_Statement *stmt,
+    const char *name)
+  {
+    auto span = telemetry::mk_span( name == nullptr ? "SQL prepare" : name,
+      stmt->conn_telemetry().span->GetContext()
+    );
+
+    span->SetAttribute("db.user", stmt->connection->getCurrentUser().c_str());
 
     return span;
   }

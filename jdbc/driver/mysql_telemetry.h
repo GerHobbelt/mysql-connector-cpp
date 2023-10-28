@@ -32,11 +32,12 @@
 #ifndef _MYSQL_TELEMETRY_H_
 #define _MYSQL_TELEMETRY_H_
 
+#include <cppconn/connection.h>  // opentelemetry_mode enum
 #ifdef TELEMETRY
-#include <cppconn/connection.h> // opentelemetry_mode enum
 #include <opentelemetry/trace/provider.h>
 #endif
 
+#include "mysql_uri.h"
 #include <string>
 
 
@@ -47,7 +48,7 @@ namespace mysql
 
   class MySQL_Connection;
   class MySQL_Statement;
-  
+
   namespace telemetry
   {
 
@@ -57,97 +58,125 @@ namespace mysql
       be optimized out by the compiler).
     */
 
-#ifndef TELEMETRY
-
-    template<class>
-    struct Telemetry_base
-    {
-      void set_mode(opentelemetry_mode) {}
-    };
-
-#else
+#ifdef TELEMETRY
 
     namespace nostd      = opentelemetry::nostd;
     namespace trace      = opentelemetry::trace;
 
     using Span_ptr = nostd::shared_ptr<trace::Span>;
 
-    template<class Obj> 
+#endif
+
+
+    template<class Obj>
     struct Telemetry_base
     {
+#ifdef TELEMETRY
       bool disabled(Obj*) const;
+      Span_ptr span;
+
     protected:
-      Span_ptr mk_span(Obj*);
+      Span_ptr mk_span(Obj*, const char *);
+#endif
     };
+
 
     template<>
     struct Telemetry_base<MySQL_Connection>
     {
       using Obj = MySQL_Connection;
 
+      void set_mode(opentelemetry_mode m) 
+#ifndef TELEMETRY
+      {}
+#else
+      {
+        mode = m;
+      }
+#endif
+
+      void set_attribs(
+        MySQL_Connection* con, 
+        MySQL_Uri::Host_data& endpoint, 
+        sql::ConnectOptionsMap& options
+      )
+#ifndef TELEMETRY
+      {}
+#else
+      ;   // Note: Defined in .cpp file
+#endif
+
+#ifdef TELEMETRY
+
+      Span_ptr span;
+      enum opentelemetry_mode mode = OTEL_PREFERRED;
+
       bool disabled(Obj *) const
       {
         return OTEL_DISABLED == mode;
       }
 
-      enum opentelemetry_mode mode = OTEL_PREFERRED;
-      void set_mode(opentelemetry_mode m)
-      {
-        mode = m;
-      }
-
     protected:
 
-      Span_ptr mk_span(Obj*);
+      Span_ptr mk_span(Obj*, const char *);
+#endif
     };
 
-#endif
 
-    template<class Obj> 
+    template<class Obj>
     struct Telemetry
      : public Telemetry_base<Obj>
     {
 #ifndef TELEMETRY
 
-      static void span_start(Obj*) {}
+      static void span_start(Obj *, const char *name = nullptr) {}
       static void span_end(Obj*) {}
       static void set_error(Obj*, std::string) {}
-
 #else
       using Base = Telemetry_base<Obj>;
 
-      Span_ptr span;
 
-      void span_start(Obj *obj)
+      void span_start(Obj *obj, const char *name = nullptr)
       {
         if (Base::disabled(obj))
           return;
-        span = Base::mk_span(obj);  
+        this->span = Base::mk_span(obj, name);
       }
 
-      
+
       void span_end(Obj *obj)
       {
-        if (!span)
+        if (!this->span)
           return;
-        span->End();
+        this->span->End();
         // Destroy span just in case
         Span_ptr sink;
-        span.swap(sink);
+        this->span.swap(sink);
       }
 
 
       void set_error(Obj *obj, std::string msg)
       {
-        if (Base::disabled(obj) || !span)
+        if (Base::disabled(obj) || !this->span)
           return;
-        span->SetStatus(trace::StatusCode::kError, msg);
+        this->span->SetStatus(trace::StatusCode::kError, msg);
         // TODO: explain why...
         Span_ptr sink;
-        span.swap(sink);       
+        this->span.swap(sink);
       }
+
+      ~Telemetry()
+      {
+        // Note: we need to explicitly end the span here even though
+        // theoretically it should be ended when the pointed trace::Span
+        // object is deleted. But without explicit close here otel
+        // instrumentation gets confused when it creates a new span later
+        // via tracer->StartSpan()  (and we don't fully understand why)
+        span_end(nullptr);
+      }
+
 #endif
-    
+
       Telemetry(opentelemetry_mode);
       Telemetry() = default;
     };
@@ -160,7 +189,7 @@ namespace mysql
     template <>
     inline
     Telemetry<MySQL_Connection>::Telemetry(opentelemetry_mode m)
-    {      
+    {
       set_mode(m);
     };
 
