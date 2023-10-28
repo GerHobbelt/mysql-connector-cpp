@@ -31,8 +31,8 @@
 #
 
 set(CONCPP_VERSION_MAJOR  8 CACHE INTERNAL "version info")
-set(CONCPP_VERSION_MINOR  0 CACHE INTERNAL "version info")
-set(CONCPP_VERSION_MICRO 34 CACHE INTERNAL "version info")
+set(CONCPP_VERSION_MINOR  1 CACHE INTERNAL "version info")
+set(CONCPP_VERSION_MICRO  0 CACHE INTERNAL "version info")
 # Level is "-alpha", "-beta", empty if GA
 set(CONCPP_VERSION_LEVEL  "" CACHE INTERNAL "version info")
 
@@ -41,9 +41,23 @@ set(CONCPP_VERSION
   CACHE INTERNAL "version info"
 )
 
-#Update padding when Minor / Micro length changes
+# Note version number format is XYYZZZZ
+# TODO: Handle 3-digit versions
+
+if(CONCPP_VERSION_MINOR LESS 10)
+  set(PAD_MINOR "0")
+else()
+  set(PAD_MINOR "")
+endif()
+
+if(CONCPP_VERSION_MICRO LESS 10)
+  set(PAD_MICRO "000")
+else()
+  set(PAD_MICRO "00")
+endif()
+
 set(CONCPP_VERSION_NUMBER
-  "${CONCPP_VERSION_MAJOR}0${CONCPP_VERSION_MINOR}00${CONCPP_VERSION_MICRO}"
+  "${CONCPP_VERSION_MAJOR}${PAD_MINOR}${CONCPP_VERSION_MINOR}${PAD_MICRO}${CONCPP_VERSION_MICRO}"
   CACHE INTERNAL "version info"
 )
 
