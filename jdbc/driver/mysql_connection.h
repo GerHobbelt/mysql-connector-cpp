@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2023, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0, as
@@ -205,8 +205,6 @@ private:
 #ifdef _WIN32
 #pragma warning(pop)
 #endif
-
-  bool telemetry_disabled() const;
 
   /* Prevent use of these */
   MySQL_Connection(const MySQL_Connection &);

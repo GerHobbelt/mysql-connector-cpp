@@ -39,6 +39,9 @@ configure_file(version_info.h.cmake version_info.h @ONLY)
 include_directories(BEFORE ${CMAKE_CURRENT_BINARY_DIR})
 
 #-------------------
+# Work around the compiler errors in Windows
+ADD_DEFINITIONS(-DWIN32_LEAN_AND_MEAN -DNOGDI)
+
 
 if(MYSQLCLIENT_STATIC_BINDING)
   message(STATUS "Using static libmysql binding")
@@ -106,7 +109,6 @@ SET(MYSQLCPPCONN_SOURCES
   mysql_resultset.cpp
   mysql_resultset_metadata.cpp
   mysql_statement.cpp
-  mysql_telemetry.cpp
   mysql_util.cpp
   mysql_warning.cpp
   mysql_uri.cpp
@@ -117,6 +119,10 @@ SET(MYSQLCPPCONN_SOURCES
   nativeapi/mysql_native_statement_wrapper.cpp
   nativeapi/mysql_native_resultset_wrapper.cpp
 )
+
+if(TELEMETRY)
+  list(APPEND MYSQLCPPCONN_SOURCES  mysql_telemetry.cpp)
+endif()
 
 
 IF(WIN32)
@@ -141,7 +147,6 @@ IF(WIN32)
     mysql_resultset.h
     mysql_resultset_metadata.h
     mysql_statement.h
-    mysql_telemetry.h
     mysql_util.h
     mysql_warning.h
     mysql_uri.h
@@ -177,6 +182,10 @@ IF(WIN32)
         nativeapi/library_loader.h)
   ENDIF(NOT MYSQLCLIENT_STATIC_BINDING)
 
+  if(TELEMETRY)
+    list(APPEND MYSQLCPPCONN_SOURCES  mysql_telemetry.h)
+  endif()
+
   # Used to create source filter in projects in VS
   SOURCE_GROUP(NativeApi nativeapi/.+)
   SOURCE_GROUP(API ../cppconn/.+)
@@ -204,7 +213,7 @@ else()
   ENDIF(NOT WIN32)
 endif()
 
-target_link_libraries(jdbc PRIVATE ext::opentelemetry_api)
+target_link_libraries(jdbc PRIVATE otel_api)
 
 if(NOT BUILD_SHARED_LIBS)
   target_compile_definitions(jdbc PRIVATE -DCPPCONN_LIB_BUILD)

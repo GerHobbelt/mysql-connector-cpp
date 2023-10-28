@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2023, Oracle and/or its affiliates.
+ * Copyright (c) 2023, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0, as
@@ -32,27 +32,12 @@
 #ifndef _MYSQL_TELEMETRY_H_
 #define _MYSQL_TELEMETRY_H_
 
-#include <iostream>
+#ifdef TELEMETRY
+#include <cppconn/connection.h> // opentelemetry_mode enum
 #include <opentelemetry/trace/provider.h>
+#endif
+
 #include <string>
-
-#include <cppconn/sqlstring.h>
-#include <cppconn/version_info.h>
-#include <vector>
-
-template <typename T>
-void logm(T&& msg)
-{
-  std::cerr << msg << std::endl;
-}
-
-template <typename T, typename... TT>
-void logm(T&& first, TT&&... rest)
-{
-  std::cerr << first << " ";
-  logm(std::forward<TT>(rest)...);
-}
-
 
 
 namespace sql
@@ -65,22 +50,125 @@ namespace mysql
   
   namespace telemetry
   {
+
+    /*
+      Note: If TELEMETRY flag is not enabled then defines phony classes
+      Telemetry_base<X> and Telemetry<X> that do nothing (and should
+      be optimized out by the compiler).
+    */
+
+#ifndef TELEMETRY
+
+    template<class>
+    struct Telemetry_base
+    {
+      void set_mode(opentelemetry_mode) {}
+    };
+
+#else
+
     namespace nostd      = opentelemetry::nostd;
     namespace trace      = opentelemetry::trace;
 
     using Span_ptr = nostd::shared_ptr<trace::Span>;
+
+    template<class Obj> 
+    struct Telemetry_base
+    {
+      bool disabled(Obj*) const;
+    protected:
+      Span_ptr mk_span(Obj*);
+    };
+
+    template<>
+    struct Telemetry_base<MySQL_Connection>
+    {
+      using Obj = MySQL_Connection;
+
+      bool disabled(Obj *) const
+      {
+        return OTEL_DISABLED == mode;
+      }
+
+      enum opentelemetry_mode mode = OTEL_PREFERRED;
+      void set_mode(opentelemetry_mode m)
+      {
+        mode = m;
+      }
+
+    protected:
+
+      Span_ptr mk_span(Obj*);
+    };
+
+#endif
+
+    template<class Obj> 
+    struct Telemetry
+     : public Telemetry_base<Obj>
+    {
+#ifndef TELEMETRY
+
+      static void span_start(Obj*) {}
+      static void span_end(Obj*) {}
+      static void set_error(Obj*, std::string) {}
+
+#else
+      using Base = Telemetry_base<Obj>;
+
+      Span_ptr span;
+
+      void span_start(Obj *obj)
+      {
+        if (Base::disabled(obj))
+          return;
+        span = Base::mk_span(obj);  
+      }
+
+      
+      void span_end(Obj *obj)
+      {
+        if (!span)
+          return;
+        span->End();
+        // Destroy span just in case
+        Span_ptr sink;
+        span.swap(sink);
+      }
+
+
+      void set_error(Obj *obj, std::string msg)
+      {
+        if (Base::disabled(obj) || !span)
+          return;
+        span->SetStatus(trace::StatusCode::kError, msg);
+        // TODO: explain why...
+        Span_ptr sink;
+        span.swap(sink);       
+      }
+#endif
     
-    Span_ptr mk_span(MySQL_Statement*);
-    Span_ptr mk_span(MySQL_Connection*);
+      Telemetry(opentelemetry_mode);
+      Telemetry() = default;
+    };
 
-    // Set error status for the given span and clear the pointer.
+    /*
+      Note: This ctor can be used to construct connection telemetry object
+      with a different default mode.
+    */
 
-    void set_error(Span_ptr&, std::string);
+    template <>
+    inline
+    Telemetry<MySQL_Connection>::Telemetry(opentelemetry_mode m)
+    {      
+      set_mode(m);
+    };
 
   } /* namespace telemetry */
 
 } /* namespace mysql */
 } /* namespace sql */
+
 
 #endif /*_MYSQL_URI_H_*/
 /*

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2023, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0, as
@@ -89,8 +89,7 @@ struct MySQL_ConnectionData
 
   std::unique_ptr<MySQL_ConnectionMetaData> meta;
 
-  enum_opentelemetry_mode telemetryMode = OTEL_PREFERRED;
-  telemetry::Span_ptr trace_span;
+  telemetry::Telemetry<MySQL_Connection> telemetry;
 };
 
 } /* namespace mysql */
