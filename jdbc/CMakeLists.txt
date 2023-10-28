@@ -154,7 +154,7 @@ add_library(otel_api INTERFACE)
 if(NOT (WIN32 OR APPLE OR CMAKE_SYSTEM_NAME MATCHES "SunOS"))
   message(STATUS "Adding OTel support")
   set(TELEMETRY ON)
-  target_include_directories(otel_api INTERFACE 
+  target_include_directories(otel_api INTERFACE
     "${PROJECT_SOURCE_DIR}/extra/otel/opentelemetry-cpp-1.8.3/api/include"
   )
   target_compile_definitions(otel_api INTERFACE TELEMETRY)
@@ -255,6 +255,25 @@ file(WRITE "${INFO}" "Connector/C++ build information.\n\n")
 set(INFO_PREFIX "jdbc-")
 
 merge_libraries(connector-jdbc jdbc)
+
+
+# Note: When connector links statically to the client library, targets using
+# the connector must be able to find dependencies of the client library, such
+# as openssl libs. The MYSQL_EXTERNAL_SEARCHPATH variable set by DepFindMySQL.
+# cmake stores detected locations where client library dependencies that
+# are bundled with it can be found. We add it here as interface property
+# so that other targets that link with the connector will have library search
+# path correctly set in the compile line.
+#
+# TODO: Modify merge_libraries() logic to autmatically detect transitive link
+# directory path properties of merged targets and then set them on the merged
+# library target.
+
+if(MYSQLCLIENT_STATIC_LINKING)
+  target_link_directories(connector-jdbc INTERFACE
+    ${MYSQL_EXTERNAL_SEARCHPATH}
+  )
+endif()
 
 
 #
@@ -402,7 +421,7 @@ set(AUTH_PLUGINS
 )
 
 if(NOT CMAKE_SYSTEM_NAME MATCHES "SunOS")
-  list(APPEND AUTH_PLUGINS fido)
+  list(APPEND AUTH_PLUGINS webauthn fido)
   # Note: Kerberos authentication plugin is not supported on macOS
   if(NOT APPLE)
     list(APPEND AUTH_PLUGINS kerberos)
@@ -416,6 +435,7 @@ endif()
 # should be listed first, otherwise the logic detecting missing dependencies
 # will break... For example: `krb5support` must go before `krb5`
 
+set(AUTH_DEPS_webauthn fido2)
 set(AUTH_DEPS_fido fido2)
 
 
