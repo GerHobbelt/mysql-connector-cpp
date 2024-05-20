@@ -1,22 +1,22 @@
 /*
- * Copyright (c) 2008, 2022, Oracle and/or its affiliates.
+ * Copyright (c) 2008, 2024, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0, as
  * published by the Free Software Foundation.
  *
- * This program is also distributed with certain software (including
- * but not limited to OpenSSL) that is licensed under separate terms,
- * as designated in a particular file or component or in included license
- * documentation.  The authors of MySQL hereby grant you an
- * additional permission to link the program and your derivative works
- * with the separately licensed software that they have included with
- * MySQL.
+ * This program is designed to work with certain software (including
+ * but not limited to OpenSSL) that is licensed under separate terms, as
+ * designated in a particular file or component or in included license
+ * documentation. The authors of MySQL hereby grant you an additional
+ * permission to link the program and your derivative works with the
+ * separately licensed software that they have either included with
+ * the program or referenced in the documentation.
  *
  * Without limiting anything contained in the foregoing, this file,
- * which is part of MySQL Connector/C++, is also subject to the
+ * which is part of Connector/C++, is also subject to the
  * Universal FOSS Exception, version 1.0, a copy of which can be found at
- * http://oss.oracle.com/licenses/universal-foss-exception.
+ * https://oss.oracle.com/licenses/universal-foss-exception.
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -25,9 +25,8 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+ * 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  */
-
 
 #include <string.h>
 #include <stdlib.h>
@@ -321,9 +320,35 @@ public:
     }
   }
 
+
+
+  bool check_query_attr_support()
+  {
+    if (has_query_attributes)
+      return true;
+
+    assert(0 == attrs.size());
+    return false;
+  }
+
+
+  /*
+    Only resize `bind` vector accordingly but do not copy
+    attribute value from `attrs` -- this is done later in `getBindObject()`.
+  */
+
+  void resize_bind()
+  {
+    if (param_count + attrs.size() > bind.size())
+    {
+      bind.resize(param_count + attrs.size());
+    }
+  }
+
+
   /*
     Set or overwrite existing value of an attribute with given name.
-    
+
     If `is_external` is false then existing external value will not
     be changed.
   */
@@ -334,31 +359,177 @@ public:
     bool is_external
   )
   {
-    /*
-      Note: If we are talking to server that does not support query attributes then they are silently ignored.
-    */
-
-    if (!has_query_attributes)
-    {
-      assert(0 == attrs.size());
+    if (!check_query_attr_support())
       return 0;
-    }
 
     int pos = attrs.setQueryAttrString(name, value, is_external);
-
-    /*
-      Note: Here we only resize `bind` vector accordingly but do not copy
-      attribute value from `attrs` -- this is done later in `getBindObject()`.
-    */
-
-    if (param_count + attrs.size() > bind.size())
-      bind.resize(param_count + attrs.size());
-
+    resize_bind();
     return pos;
   }
 
 
-  bool isAllSet()
+  /*
+    Set or overwrite BigInt value of an attribute with given name.
+  */
+
+  int setQueryAttrBigInt(
+    const sql::SQLString &name,
+    const sql::SQLString &value
+  )
+  {
+    if (!check_query_attr_support())
+      return 0;
+
+    int pos = attrs.setQueryAttrBigInt(name, value);
+    resize_bind();
+    return pos;
+  }
+
+
+  /*
+    Set or overwrite boolean value of an attribute with given name.
+  */
+
+  int setQueryAttrBoolean(
+    const sql::SQLString &name,
+    bool value
+  )
+  {
+    if (!check_query_attr_support())
+      return 0;
+
+    int pos = attrs.setQueryAttrBoolean(name, value);
+    resize_bind();
+    return pos;
+  }
+
+
+  /*
+    Set or overwrite DateTime value of an attribute with given name.
+  */
+
+  int setQueryAttrDateTime(
+    const sql::SQLString &name,
+    const sql::SQLString &value
+  )
+  {
+    if (!check_query_attr_support())
+      return 0;
+
+    int pos = attrs.setQueryAttrDateTime(name, value);
+    resize_bind();
+    return pos;
+  }
+
+
+  /*
+    Set or overwrite double value of an attribute with given name.
+  */
+
+  int setQueryAttrDouble(
+    const sql::SQLString &name,
+    double value
+  )
+  {
+    if (!check_query_attr_support())
+      return 0;
+
+    int pos = attrs.setQueryAttrDouble(name, value);
+    resize_bind();
+    return pos;
+  }
+
+
+  /*
+    Set or overwrite int32_t value of an attribute with given name.
+  */
+
+  int setQueryAttrInt(
+    const sql::SQLString &name,
+    int32_t value
+  )
+  {
+    if (!check_query_attr_support())
+      return 0;
+
+    int pos = attrs.setQueryAttrInt(name, value);
+    resize_bind();
+    return pos;
+  }
+
+
+  /*
+    Set or overwrite uint32_t value of an attribute with given name.
+  */
+
+  int setQueryAttrUInt(
+    const sql::SQLString &name,
+    uint32_t value
+  )
+  {
+    if (!check_query_attr_support())
+      return 0;
+
+    int pos = attrs.setQueryAttrUInt(name, value);
+    resize_bind();
+    return pos;
+  }
+
+
+  /*
+    Set or overwrite int64_t value of an attribute with given name.
+  */
+
+  int setQueryAttrInt64(
+    const sql::SQLString &name,
+    int64_t value
+  )
+  {
+    if (!check_query_attr_support())
+      return 0;
+
+    int pos = attrs.setQueryAttrInt64(name, value);
+    resize_bind();
+    return pos;
+  }
+
+
+  /*
+    Set or overwrite uint64_t value of an attribute with given name.
+  */
+
+  int setQueryAttrUInt64(
+    const sql::SQLString &name,
+    uint64_t value
+  )
+  {
+    if (!check_query_attr_support())
+      return 0;
+
+    int pos = attrs.setQueryAttrUInt64(name, value);
+    resize_bind();
+    return pos;
+  }
+
+
+  /*
+    Set null value of an attribute with given name.
+  */
+
+  int setQueryAttrNull(
+    const sql::SQLString &name
+  )
+  {
+    if (!check_query_attr_support())
+      return 0;
+
+    int pos = attrs.setQueryAttrNull(name);
+    resize_bind();
+    return pos;
+  }
+
+
+bool isAllSet()
   {
     for (unsigned int i = 0; i < value_set.size(); ++i) {
       if (!value_set[i]) {
@@ -453,7 +624,7 @@ public:
     by `getBindObject()`. This starts with empty names for parameters
     (which are anonymous) followed by attribute names.
   */
- 
+
   std::vector<const char*> getNames()
   {
     std::vector<const char*> names{bind.size(), nullptr};
@@ -1514,7 +1685,6 @@ MySQL_Prepared_Statement::setResultSetType(sql::ResultSet::enum_type /* type */)
 }
 /* }}} */
 
-
 /* {{{ MySQL_Prepared_Statement::setQueryAttrBigInt() -U- */
 int
 MySQL_Prepared_Statement::setQueryAttrBigInt(const sql::SQLString &name, const sql::SQLString& value)
@@ -1522,7 +1692,7 @@ MySQL_Prepared_Statement::setQueryAttrBigInt(const sql::SQLString &name, const s
   CPP_ENTER("MySQL_Prepared_Statement::setQueryAttrBigInt");
   CPP_INFO_FMT("this=%p", this);
   CPP_INFO_FMT("name=%s value=%s", name.c_str(), value.c_str());
-  return 0;
+  return param_bind->setQueryAttrBigInt(name, value);
 }
 /* }}} */
 
@@ -1534,7 +1704,7 @@ MySQL_Prepared_Statement::setQueryAttrBoolean(const sql::SQLString &name, bool v
   CPP_ENTER("MySQL_Prepared_Statement::setQueryAttrBoolean");
   CPP_INFO_FMT("this=%p", this);
   CPP_INFO_FMT("name=%s value=%s", name.c_str(), value ? "true" : "false");
-  return 0;
+  return param_bind->setQueryAttrBoolean(name, value);
 }
 /* }}} */
 
@@ -1546,7 +1716,7 @@ MySQL_Prepared_Statement::setQueryAttrDateTime(const sql::SQLString &name, const
   CPP_ENTER("MySQL_Prepared_Statement::setQueryAttrDateTime");
   CPP_INFO_FMT("this=%p", this);
   CPP_INFO_FMT("name=%s value=%s", name.c_str(), value.c_str());
-  return 0;
+  return param_bind->setQueryAttrDateTime(name, value);
 }
 /* }}} */
 
@@ -1558,7 +1728,7 @@ MySQL_Prepared_Statement::setQueryAttrDouble(const sql::SQLString &name, double 
   CPP_ENTER("MySQL_Prepared_Statement::setQueryAttrDouble");
   CPP_INFO_FMT("this=%p", this);
   CPP_INFO_FMT("name=%s value=%f", name.c_str(), value);
-  return 0;
+  return param_bind->setQueryAttrDouble(name, value);
 }
 /* }}} */
 
@@ -1570,7 +1740,7 @@ MySQL_Prepared_Statement::setQueryAttrInt(const sql::SQLString &name, int32_t va
   CPP_ENTER("MySQL_Prepared_Statement::setQueryAttrInt");
   CPP_INFO_FMT("this=%p", this);
   CPP_INFO_FMT("name=%s value=%f", name.c_str(), value);
-  return 0;
+  return param_bind->setQueryAttrInt(name, value);
 }
 /* }}} */
 
@@ -1582,7 +1752,7 @@ MySQL_Prepared_Statement::setQueryAttrUInt(const sql::SQLString &name, uint32_t 
   CPP_ENTER("MySQL_Prepared_Statement::setQueryAttrUInt");
   CPP_INFO_FMT("this=%p", this);
   CPP_INFO_FMT("name=%s value=%f", name.c_str(), value);
-  return 0;
+  return param_bind->setQueryAttrUInt(name, value);
 }
 /* }}} */
 
@@ -1594,7 +1764,7 @@ MySQL_Prepared_Statement::setQueryAttrInt64(const sql::SQLString &name, int64_t 
   CPP_ENTER("MySQL_Prepared_Statement::setQueryAttrInt64");
   CPP_INFO_FMT("this=%p", this);
   CPP_INFO_FMT("name=%s value=%f", name.c_str(), value);
-  return 0;
+  return param_bind->setQueryAttrInt64(name, value);
 }
 /* }}} */
 
@@ -1606,7 +1776,7 @@ MySQL_Prepared_Statement::setQueryAttrUInt64(const sql::SQLString &name, uint64_
   CPP_ENTER("MySQL_Prepared_Statement::setQueryAttrUInt64");
   CPP_INFO_FMT("this=%p", this);
   CPP_INFO_FMT("name=%s value=%f", name.c_str(), value);
-  return 0;
+  return param_bind->setQueryAttrUInt64(name, value);
 }
 /* }}} */
 
@@ -1618,7 +1788,7 @@ MySQL_Prepared_Statement::setQueryAttrNull(const sql::SQLString &name)
   CPP_ENTER("MySQL_Prepared_Statement::setQueryAttrNull");
   CPP_INFO_FMT("this=%p", this);
   CPP_INFO_FMT("name=%s", name.c_str());
-  return 0;
+  return param_bind->setQueryAttrNull(name);
 }
 /* }}} */
 
@@ -1648,7 +1818,9 @@ MySQL_Prepared_Statement::setQueryAttrString(const sql::SQLString &name, const s
   CPP_ENTER("MySQL_Prepared_Statement::setQueryAttrString");
   CPP_INFO_FMT("this=%p", this);
   CPP_INFO_FMT("name=%s value=%f", name.c_str(), value.c_str());
-  return 0;
+  // If this function was called it means that the user is setting
+  // a string attribute. Therefore the external flag is true.
+  return param_bind->setQueryAttrString(name, value, true);
 }
 /* }}} */
 

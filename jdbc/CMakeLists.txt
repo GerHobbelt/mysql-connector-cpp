@@ -1,21 +1,21 @@
-# Copyright (c) 2008, 2023, Oracle and/or its affiliates.
+# Copyright (c) 2015, 2024, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0, as
 # published by the Free Software Foundation.
 #
-# This program is also distributed with certain software (including
-# but not limited to OpenSSL) that is licensed under separate terms,
-# as designated in a particular file or component or in included license
-# documentation.  The authors of MySQL hereby grant you an
-# additional permission to link the program and your derivative works
-# with the separately licensed software that they have included with
-# MySQL.
+# This program is designed to work with certain software (including
+# but not limited to OpenSSL) that is licensed under separate terms, as
+# designated in a particular file or component or in included license
+# documentation. The authors of MySQL hereby grant you an additional
+# permission to link the program and your derivative works with the
+# separately licensed software that they have either included with
+# the program or referenced in the documentation.
 #
 # Without limiting anything contained in the foregoing, this file,
-# which is part of MySQL Connector/C++, is also subject to the
+# which is part of Connector/C++, is also subject to the
 # Universal FOSS Exception, version 1.0, a copy of which can be found at
-# http://oss.oracle.com/licenses/universal-foss-exception.
+# https://oss.oracle.com/licenses/universal-foss-exception.
 #
 # This program is distributed in the hope that it will be useful, but
 # WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -24,7 +24,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software Foundation, Inc.,
-# 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+# 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 
 
 PROJECT(MYSQLCPPCONN)
@@ -149,16 +149,8 @@ endif()
 
 find_dependency(MySQL)
 
-add_library(otel_api INTERFACE)
-# Note: For now make it phony target on platforms other than Linux
-if(NOT (WIN32 OR APPLE OR CMAKE_SYSTEM_NAME MATCHES "SunOS"))
-  message(STATUS "Adding OTel support")
-  set(TELEMETRY ON)
-  target_include_directories(otel_api INTERFACE
-    "${PROJECT_SOURCE_DIR}/extra/otel/opentelemetry-cpp-1.8.3/api/include"
-  )
-  target_compile_definitions(otel_api INTERFACE TELEMETRY)
-endif()
+# otel_api interface target
+add_subdirectory(extra/otel)
 
 
 #-----------------
@@ -427,7 +419,7 @@ set(AUTH_PLUGINS
 )
 
 if(NOT CMAKE_SYSTEM_NAME MATCHES "SunOS")
-  list(APPEND AUTH_PLUGINS webauthn fido)
+  list(APPEND AUTH_PLUGINS webauthn)
   # Note: Kerberos authentication plugin is not supported on macOS
   if(NOT APPLE)
     list(APPEND AUTH_PLUGINS kerberos)
@@ -442,7 +434,6 @@ endif()
 # will break... For example: `krb5support` must go before `krb5`
 
 set(AUTH_DEPS_webauthn fido2)
-set(AUTH_DEPS_fido fido2)
 
 
 if(WIN32)
@@ -481,7 +472,12 @@ set(PLUGINS)
 
 set(BUNDLED_LIBS)
 
-set(IGNORED_PLUGINS qa_auth_client telemetry_client)
+set(IGNORED_PLUGINS
+  qa_auth_client
+  # note: we have our own telemetry code, not using the client library plugin
+  telemetry_client
+  authentication_fido_client  # note: replaced by webauthn plugin
+)
 
 set(IGNORED_LIBS
   libmysql lber libprotobuf

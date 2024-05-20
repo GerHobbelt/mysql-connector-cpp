@@ -1,27 +1,28 @@
 ﻿<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
 
 <!--
-   Copyright (c) 2010, 2023, Oracle and/or its affiliates.
-
+   Copyright (c) 2010, 2024, Oracle and/or its affiliates.
+ 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
    as published by the Free Software Foundation.
-
-   This program is also distributed with certain software (including
-   but not limited to OpenSSL) that is licensed under separate terms,
-   as designated in a particular file or component or in included license
-   documentation.  The authors of MySQL hereby grant you an additional
+ 
+   This program is designed to work with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms, as
+   designated in a particular file or component or in included license
+   documentation. The authors of MySQL hereby grant you an additional
    permission to link the program and your derivative works with the
-   separately licensed software that they have included with MySQL.
-
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License, version 2.0, for more details.
-
+   separately licensed software that they have either included with
+   the program or referenced in the documentation.
+ 
+   This program is distributed in the hope that it will be useful, but
+   WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See
+   the GNU General Public License, version 2.0, for more details.
+ 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+   along with this program; if not, write to the Free Software Foundation, Inc.,
+   51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 -->
 
   <Package UpgradeCode="@UPGRADE_CODE@" Name="@PRODUCT_NAME@ @MAJOR_VERSION@.@MINOR_VERSION@" Version="@MAJOR_VERSION@.@MINOR_VERSION@.@PATCH_VERSION@" Language="1033" Manufacturer="@MANUFACTURER@" InstallerVersion="200"><SummaryInformation Keywords="Installer" Description="@PRODUCT_DESCRIPTION@" Manufacturer="@MANUFACTURER@" />
@@ -115,7 +116,7 @@
     <WixVariable Id="WixUILicenseRtf" Value="@LICENSE_RTF@" />
 
     <!-- Installation root-->
-    
+
 
     <!-- WIX_FEATURES -->
     <Feature Id="XDEVAPI" Title="New X DevAPI connector" Description="New X DevAPI connector" ConfigurableDirectory="INSTALLDIR" Level="1">
@@ -146,7 +147,7 @@
        <ComponentGroupRef Id="componentgroup.Readme" />
     </Feature>
 
-    <!-- 
+    <!--
       Register installed connector in the CMake system package registry.
       See https://cmake.org/cmake/help/latest/manual/cmake-packages.7.html#system-package-registry
     -->
@@ -157,7 +158,7 @@
       Directory="INSTALLDIR"
     >
 
-      <RegistryValue 
+      <RegistryValue
         Root="HKLM"
         Key="Software\Kitware\CMake\Packages\mysql-concpp"
         Type="string"
@@ -181,7 +182,7 @@
 
     <Directory Id="@PROGRAM_FILES_FOLDER@">
       <Directory Id="directory.MySQL" Name="MySQL">
-        <Directory Id="INSTALLDIR" Name="@PRODUCT_NAME@ @MAJOR_VERSION@.@MINOR_VERSION@">
+        <Directory Id="INSTALLDIR" Name="@WIX_INSTALL_DIR@">
         </Directory>
       </Directory>
     </Directory>

@@ -1,22 +1,22 @@
 /*
- * Copyright (c) 2015, 2020, Oracle and/or its affiliates.
+ * Copyright (c) 2015, 2024, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0, as
  * published by the Free Software Foundation.
  *
- * This program is also distributed with certain software (including
- * but not limited to OpenSSL) that is licensed under separate terms,
- * as designated in a particular file or component or in included license
- * documentation.  The authors of MySQL hereby grant you an
- * additional permission to link the program and your derivative works
- * with the separately licensed software that they have included with
- * MySQL.
+ * This program is designed to work with certain software (including
+ * but not limited to OpenSSL) that is licensed under separate terms, as
+ * designated in a particular file or component or in included license
+ * documentation. The authors of MySQL hereby grant you an additional
+ * permission to link the program and your derivative works with the
+ * separately licensed software that they have either included with
+ * the program or referenced in the documentation.
  *
  * Without limiting anything contained in the foregoing, this file,
- * which is part of MySQL Connector/C++, is also subject to the
+ * which is part of Connector/C++, is also subject to the
  * Universal FOSS Exception, version 1.0, a copy of which can be found at
- * http://oss.oracle.com/licenses/universal-foss-exception.
+ * https://oss.oracle.com/licenses/universal-foss-exception.
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -25,7 +25,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+ * 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
 #include <mysql/cdk/foundation/common.h>
@@ -84,58 +84,57 @@ POP_SYS_WARNINGS_CDK
 
 
 /*
-  Default list of ciphers. By default we allow only ciphers that are approved
-  by the OSSA page (the link below). Lists of mandatory and approved ciphers
-  defined below should be kept in sync with requirements on this
-  page.
+  The "tls_ciphers.h" header defines cipher list macros:
 
-  https://confluence.oraclecorp.com/confluence/display/GPS/Approved+Security+Technologies%3A+Standards+-+TLS+Ciphers+and+Versions
+  - TLS_CIPHERS_MANDATORY(X)
+  - TLS_CIPHERS_APPROVED(X)
+  - TLS_CIPHERS_UNACCEPTABLE(X)
+
+  Each of these macros calls X(A,B) for each cipher in the list where A is
+  the IANA name of the cipher while B is OpenSSL name of the same cipher (both
+  A and B are string listerals). For example:
+
+  X("TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256", "ECDHE-ECDSA-AES128-GCM-SHA256")
+
+  If there is no OpenSSL name for the cipher then B is the empty string "".
+
+  These list should be kept in sync with info given on the OSSA page [1].
+
+  [1] https://confluence.oraclecorp.com/confluence/display/GPS/Approved+Security+Technologies%3A+Standards+-+TLS+Ciphers+and+Versions
 */
 
-#define TLS_CIPHERS_MANDATORY(X) \
-  X("TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256",  "ECDHE-ECDSA-AES128-GCM-SHA256") \
-  X("TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384",  "ECDHE-ECDSA-AES256-GCM-SHA384") \
-  X("TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256",    "ECDHE-RSA-AES128-GCM-SHA256") \
-
-/*
-  Note: Empty OpenSSL name means TLSv1.3+ cipher suite which is handled
-  differently from pre-TLSv1.3 suites that have OpenSSL specific names.
-*/
-
-#define TLS_CIPHERS_APPROVED(X) \
-  X("TLS_AES_128_GCM_SHA256", "") \
-  X("TLS_AES_256_GCM_SHA384", "") \
-  X("TLS_CHACHA20_POLY1305_SHA256", "") \
-  X("TLS_AES_128_CCM_SHA256", "") \
-  X("TLS_AES_128_CCM_8_SHA256", "") \
-  X("TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384", "ECDHE-RSA-AES256-GCM-SHA384") \
-  X("TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384", "ECDHE-ECDSA-AES256-SHA384") \
-  X("TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384", "ECDHE-RSA-AES256-SHA384") \
-  X("TLS_DHE_RSA_WITH_AES_128_GCM_SHA256", "DHE-RSA-AES128-GCM-SHA256") \
-  X("TLS_DHE_DSS_WITH_AES_128_GCM_SHA256", "DHE-DSS-AES128-GCM-SHA256") \
-  X("TLS_DHE_RSA_WITH_AES_128_CBC_SHA256", "DHE-RSA-AES128-SHA256") \
-  X("TLS_DHE_DSS_WITH_AES_128_CBC_SHA256", "DHE-DSS-AES128-SHA256") \
-  X("TLS_DHE_DSS_WITH_AES_256_GCM_SHA384", "DHE-DSS-AES256-GCM-SHA384") \
-  X("TLS_DHE_RSA_WITH_AES_256_GCM_SHA384", "DHE-RSA-AES256-GCM-SHA384") \
-  X("TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256", "ECDHE-ECDSA-CHACHA20-POLY1305") \
-  X("TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256", "ECDHE-RSA-CHACHA20-POLY1305") \
+#include "tls_ciphers.h"
 
 
 // Note: these deprecated ciphers are temporarily allowed to make it possible
 // to connect to old servers based on YaSSL.
+// TODO: Remove this list
 
 #define TLS_CIPHERS_COMPAT(X) \
-  X("TLS_DH_DSS_WITH_AES_128_GCM_SHA256", "DH-DSS-AES128-GCM-SHA256") \
   X("TLS_ECDH_ECDSA_WITH_AES_128_GCM_SHA256","ECDH-ECDSA-AES128-GCM-SHA256") \
-  X("TLS_DH_DSS_WITH_AES_256_GCM_SHA384","DH-DSS-AES256-GCM-SHA384") \
   X("TLS_ECDH_ECDSA_WITH_AES_256_GCM_SHA384","ECDH-ECDSA-AES256-GCM-SHA384") \
-  X("TLS_DH_RSA_WITH_AES_128_GCM_SHA256","DH-RSA-AES128-GCM-SHA256") \
   X("TLS_ECDH_RSA_WITH_AES_128_GCM_SHA256","ECDH-RSA-AES128-GCM-SHA256") \
-  X("TLS_DH_RSA_WITH_AES_256_GCM_SHA384","DH-RSA-AES256-GCM-SHA384") \
   X("TLS_ECDH_RSA_WITH_AES_256_GCM_SHA384","ECDH-RSA-AES256-GCM-SHA384") \
   X("TLS_DHE_RSA_WITH_AES_256_CBC_SHA", "DHE-RSA-AES256-SHA") \
   X("TLS_DHE_RSA_WITH_AES_128_CBC_SHA", "DHE-RSA-AES128-SHA") \
   X("TLS_RSA_WITH_AES_256_CBC_SHA", "AES256-SHA")
+
+namespace
+{
+  // Check that ciphers in the _COMPAT list are not listed as _UNACCEPTABLE.
+
+  constexpr bool compat_check(std::string_view cipher)
+  {
+    #define COMPAT_CHECK(X,...) if (cipher == X) return false;
+    TLS_CIPHERS_COMPAT(COMPAT_CHECK)
+    return true;
+  }
+
+  #define COMPAT_CHECK1(X,...) \
+  static_assert(compat_check(X), "bad compatibility cipher: " X);
+
+  TLS_CIPHERS_UNACCEPTABLE(COMPAT_CHECK1)
+}
 
 
 #define TLS_CIPHERS_DEFAULT(X) \

@@ -1,22 +1,22 @@
 /*
- * Copyright (c) 2015, 2020, Oracle and/or its affiliates.
+ * Copyright (c) 2015, 2024, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0, as
  * published by the Free Software Foundation.
  *
- * This program is also distributed with certain software (including
- * but not limited to OpenSSL) that is licensed under separate terms,
- * as designated in a particular file or component or in included license
- * documentation.  The authors of MySQL hereby grant you an
- * additional permission to link the program and your derivative works
- * with the separately licensed software that they have included with
- * MySQL.
+ * This program is designed to work with certain software (including
+ * but not limited to OpenSSL) that is licensed under separate terms, as
+ * designated in a particular file or component or in included license
+ * documentation. The authors of MySQL hereby grant you an additional
+ * permission to link the program and your derivative works with the
+ * separately licensed software that they have either included with
+ * the program or referenced in the documentation.
  *
  * Without limiting anything contained in the foregoing, this file,
- * which is part of MySQL Connector/C++, is also subject to the
+ * which is part of Connector/C++, is also subject to the
  * Universal FOSS Exception, version 1.0, a copy of which can be found at
- * http://oss.oracle.com/licenses/universal-foss-exception.
+ * https://oss.oracle.com/licenses/universal-foss-exception.
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -25,7 +25,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+ * 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
 #include "test.h"
@@ -223,6 +223,12 @@ TEST_F(Sess, compression)
 }
 
 
+/*
+  Check that cipher with higher priority (mandatory) is selected over
+  a cipher with lower priority (approved) even when user specified them
+  in reversed order.
+*/
+
 TEST_F(Sess, tls_ciphers_prio)
 {
   SKIP_IF_NO_XPLUGIN;
@@ -265,6 +271,9 @@ TEST_F(Sess, tls_ver_ciphers)
   SKIP_IF_SERVER_VERSION_LESS(8, 0, 14)
 
   std::set<std::string> versions = {"TLSv1.1" ,"TLSv1.2"};
+
+  // TOOD: Instead, working ciphers should be selected from the current cipher list(s).
+
   std::map<std::string, std::string> suites_map = {
     { "DHE-RSA-AES128-GCM-SHA256", "TLS_DHE_RSA_WITH_AES_128_GCM_SHA256"},
     { "DES-CBC3-SHA", "TLS_RSA_WITH_3DES_EDE_CBC_SHA" }
@@ -485,6 +494,48 @@ TEST_F(Sess, tls_ver_ciphers)
 
   }
 
+}
+
+
+TEST_F(Sess, tls_unaccepted_ciphers)
+{
+#ifndef TLS_CIPHERS_UNACCEPTABLE
+  cout << "Skipping - list of unacceptable ciphers is not available." << endl;
+#else
+
+  SKIP_IF_NO_XPLUGIN;
+  SKIP_IF_SERVER_VERSION_LESS(8, 0, 14)
+
+  auto test_suite = [this](string suite)
+  {
+    // cout << "Testing unacceptable ciphersuite: " << suite << endl;
+    SessionSettings opt = get_opt();
+
+    opt.set(
+      SessionOption::SSL_MODE, SSLMode::REQUIRED,
+      SessionOption::TLS_CIPHERSUITES, suite
+    );
+
+    try {
+      mysqlx::Session sess(opt);
+      GTEST_FAIL()
+        << "Session created using unacceptable cipher suite: " << suite;
+    }
+    catch(Error &e)
+    {
+      std::string what = e.what();
+      // cout << "Got error: " << what << endl;
+      bool check_error =
+        std::string::npos != what.find("OpenSSL")
+        && std::string::npos != what.find("no ciphers available");
+      EXPECT_TRUE(check_error) << "Unexpected error: " << what;
+    }
+  };
+
+  #define TEST_CIPHER(A,...)  test_suite(#A);
+  TLS_CIPHERS_UNACCEPTABLE(TEST_CIPHER)
+
+#endif
 }
 
 
