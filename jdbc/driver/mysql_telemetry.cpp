@@ -76,6 +76,19 @@ namespace telemetry
     return span;
   }
 
+  std::string get_traceparent(Span_ptr &span)
+  {
+    char buf[trace::TraceId::kSize * 2];
+    auto ctx = span->GetContext();
+
+    ctx.trace_id().ToLowerBase16(buf);
+    std::string trace_id{buf, sizeof(buf)};
+
+    ctx.span_id().ToLowerBase16({buf, trace::SpanId::kSize * 2});
+    std::string span_id{buf, trace::SpanId::kSize * 2};
+
+    return "00-" + trace_id + "-" + span_id + "-00";
+  }
 
   Span_ptr
   Telemetry_base<MySQL_Connection>::mk_span(MySQL_Connection*, const char*)
@@ -93,8 +106,8 @@ namespace telemetry
 
   void
   Telemetry_base<MySQL_Connection>::set_attribs(
-    MySQL_Connection* con, 
-    MySQL_Uri::Host_data& endpoint, 
+    MySQL_Connection* con,
+    MySQL_Uri::Host_data& endpoint,
     sql::ConnectOptionsMap& options
   )
   {
@@ -122,7 +135,7 @@ namespace telemetry
 
     span->SetAttribute("network.transport", transport);
     span->SetAttribute("server.address", endpoint.Host().c_str());
-    
+
     /*
       Note: `endpoint.hasPort()` alone is not good because it tells whether
       in a multi-host sceanrio a non-default port was specified for the chosen
@@ -159,21 +172,14 @@ namespace telemetry
       stmt->conn_telemetry().span->GetContext()
     );
 
-    if (!stmt->attrbind.attribNameExists("traceparent"))
-    {
-      char buf[trace::TraceId::kSize * 2];
-      auto ctx = span->GetContext();
+    /*
+      Note: Parameter `false` means that an "internal" value for
+      "traceparent" attribute is set that will not overwritte an existing
+      "external" value of that attribute that was set by user.
+    */
 
-      ctx.trace_id().ToLowerBase16(buf);
-      std::string trace_id{buf, sizeof(buf)};
+    setStmtAttrString(*stmt, "traceparent", get_traceparent(span), false);
 
-      ctx.span_id().ToLowerBase16({buf, trace::SpanId::kSize * 2});
-      std::string span_id{buf, trace::SpanId::kSize * 2};
-
-      stmt->attrbind.setQueryAttrString(
-        "traceparent", "00-" + trace_id + "-" + span_id + "-00"
-      );
-    }
     span->SetAttribute("db.user", stmt->connection->getCurrentUser().c_str());
 
     return span;
@@ -186,7 +192,6 @@ namespace telemetry
     return stmt->conn_telemetry().disabled(stmt->connection);
   }
 
-
   template<>
   Span_ptr
   Telemetry_base<MySQL_Prepared_Statement>::mk_span(MySQL_Prepared_Statement *stmt,
@@ -195,6 +200,17 @@ namespace telemetry
     auto span = telemetry::mk_span( name == nullptr ? "SQL prepare" : name,
       stmt->conn_telemetry().span->GetContext()
     );
+
+    if (name && !strncmp("SQL execute", name, 11))
+    {
+      // When setting STMT attribute for telemetry we need to signal that
+      // it is not an external one. Otherwise it will be added as an attribute
+      // set by user. This cannot be done without chaning the signature of
+      // MySQL_Prepared_Statement::setQueryAttrString().
+      // Therefore, we are calling a helper function, which knows how to add
+      // such attributes.
+      setStmtAttrString(*stmt, "traceparent", get_traceparent(span), false);
+    }
 
     span->SetAttribute("db.user", stmt->connection->getCurrentUser().c_str());
 
