@@ -90,17 +90,17 @@
 # Connector library targets are configured to use OpenSSL from appropriate
 # locations. This can be overriden by user -- if `mysql::openssl` target
 # is defined prior to loading `mysql-concpp` package then this target is used
-# to resolve dependency on OpenSSL library.
+# to resolve dependency on the OpenSSL library.
 #
 # MySQL client library dependency
 # -------------------------------
 #
-# If legacy library is built with the MySQL client library linked dynamically
-# then the `concpp-jdbc-static` target depends on `libmysqlclient` which should
-# be available on the build host. If it is installed in non-standard location
-# then config variable WITH_MYSQL should be set to point at the MySQL install
-# location. The library search path will be augmented to find the client
-# library installed at that location.
+# If JDBC connector library is built with the MySQL client library linked
+# dynamically then the `concpp-jdbc-static` target depends on `libmysqlclient`
+# which should be available on the build host. If it is installed
+# in non-standard location then config variable WITH_MYSQL should be set
+# to point at the MySQL install location. The library search path will
+# be augmented to find the client library installed at that location.
 #
 # Note that connector libraries published by MySQL have the client library
 # statically linked in so that there is no external dependency on it.
@@ -182,7 +182,7 @@ macro(main)
 
     # System-wide install, DEB or RPM layout.
 
-    set(INCLUDE_PATH "/usr/include/mysql-cppconn-@CONCPP_VERSION_MAJOR@")
+    set(INCLUDE_PATH "/usr/include/mysql-cppconn")
     get_filename_component(LIB_PATH "${CMAKE_CURRENT_LIST_DIR}/../.." ABSOLUTE)
 
     file(GLOB found "${LIB_PATH}/*libmysqlcppconn*")
@@ -530,7 +530,7 @@ function(add_connector_target which tgt base_name)
   unset(lib_path_debug CACHE)
   find_library(lib_path_debug
     NAMES ${base_name}
-    PATHS ${MYSQL_CONCPP_RUNTIME_LIBRARY_DIR}/${vs_suffix}/debug
+    PATHS ${MYSQL_CONCPP_RUNTIME_LIBRARY_DIR}/debug/${vs_suffix}
     NO_DEFAULT_PATH
     NO_CACHE
   )
@@ -557,7 +557,7 @@ function(add_connector_target which tgt base_name)
   if(WIN32)
 
     set(lib_path_debug
-      "${MYSQL_CONCPP_RUNTIME_LIBRARY_DIR}/${vs_suffix}/debug/${base_name}.lib"
+      "${MYSQL_CONCPP_RUNTIME_LIBRARY_DIR}/debug/${vs_suffix}/${base_name}.lib"
     )
 
   endif()
@@ -594,10 +594,13 @@ function(find_deps)
 
     # Try to find the bundled OpenSSL
 
+    set(CMAKE_FIND_LIBRARY_SUFFIXES ".so" ".dll" ".dylib")
+
     unset(ssl_lib CACHE)
     find_library(ssl_lib
       NAMES ssl libssl
-      PATHS ${LIB_PATH}/${vs_suffix}
+      PATHS ${LIB_PATH}
+      PATH_SUFFIXES private ${vs_suffix}
       NO_DEFAULT_PATH
       NO_CACHE
     )
@@ -605,7 +608,8 @@ function(find_deps)
     unset(ssl_crypto CACHE)
     find_library(ssl_crypto
       NAMES crypto libcrypto
-      PATHS ${LIB_PATH}/${vs_suffix}
+      PATHS ${LIB_PATH}
+      PATH_SUFFIXES private ${vs_suffix}
       NO_DEFAULT_PATH
       NO_CACHE
     )
