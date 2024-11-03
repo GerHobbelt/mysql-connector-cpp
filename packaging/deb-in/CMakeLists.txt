@@ -26,9 +26,18 @@
 # along with this program; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 
-IF(NOT CMAKE_SYSTEM_NAME STREQUAL "Linux")
-  RETURN()
-ENDIF()
+if(NOT CMAKE_SYSTEM_NAME STREQUAL "Linux")
+  message("Skipping DEB package configuration: not a Linux system")
+  return()
+endif()
+
+find_program(LSB_RELEASE lsb_release)
+if(NOT LSB_RELEASE)
+  message("Skipping DEB package configuration: lsb_release was not found")
+  return()
+endif()
+
+
 IF (NOT DEFINED DEB_CODENAME)
   execute_process(
     COMMAND lsb_release -cs
@@ -75,6 +84,23 @@ IF(DEB_CODENAME STREQUAL "sid")
   ENDIF()
   SET (DEB_PLATFORMRELEASE "debianunstable")
 ENDIF()
+
+# Determine multiarch library install location
+
+execute_process(
+  COMMAND dpkg-architecture -q DEB_TARGET_MULTIARCH
+  OUTPUT_VARIABLE DEB_TARGET_MULTIARCH
+  OUTPUT_STRIP_TRAILING_WHITESPACE
+  RESULT_VARIABLE res
+)
+
+if(res)
+  message(FATAL_ERROR "Failed to execute dpkg-architecture")
+endif()
+
+set(LIB_DIR "/usr/lib/${DEB_TARGET_MULTIARCH}")
+message(STATUS "multiarch lib location: ${LIB_DIR}")
+
 
 #Follow MYSQLCLIENT_STATIC_LINKING option on packaging
 if(DEFINED MYSQLCLIENT_STATIC_LINKING)
