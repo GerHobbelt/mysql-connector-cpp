@@ -77,7 +77,11 @@ IF(DEB_CODENAME STREQUAL "sid")
 ENDIF()
 
 #Follow MYSQLCLIENT_STATIC_LINKING option on packaging
-SET (DEB_CMAKE_EXTRAS "${DEB_CMAKE_EXTRAS} -DMYSQLCLIENT_STATIC_LINKING=${MYSQLCLIENT_STATIC_LINKING}")
+if(DEFINED MYSQLCLIENT_STATIC_LINKING)
+  set(DEB_CMAKE_EXTRAS
+    "${DEB_CMAKE_EXTRAS} -DMYSQLCLIENT_STATIC_LINKING=${MYSQLCLIENT_STATIC_LINKING}"
+  )
+endif()
 
 # Timestamp for use in debian/changelog
 IF (NOT DEFINED DEB_CHANGELOG_TIMESTAMP)
@@ -96,19 +100,18 @@ IF (DEB_PRODUCT STREQUAL "commercial")
   SET (DEB_LICENSENAME "Commercial")
   SET (DEB_VERSION "+commercial-1")
   SET (DEB_SERVERPRODUCT "commercial")
-  SET (JDBC_RECOMMENDS_AND_SUGGESTS "Recommends: mysql-commercial-client-plugins")
 ELSE()
   SET (DEB_COPYRIGHT_UPSTREAMNAME "MySQL ${MYSQL_BASE_VERSION}")
   SET (DEB_PRODUCTNAME "")
   SET (DEB_LICENSENAME "GPL")
   SET (DEB_VERSION "-1")
   SET (DEB_SERVERPRODUCT "community")
-  SET (JDBC_RECOMMENDS_AND_SUGGESTS "Suggests: mysql-community-client-plugins")
 ENDIF()
 
 # All files are configured and copied to the debian/ directory, which is used
 # by debuild to make the packages
-SET (DEB_ROOT ${CMAKE_SOURCE_DIR}/packaging/deb-in)
+
+SET (DEB_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
 FILE(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/debian)
 
 foreach(CF changelog control rules compat copyright)
@@ -143,4 +146,3 @@ endforeach()
 EXECUTE_PROCESS(
   COMMAND chmod +x ${CMAKE_BINARY_DIR}/debian/rules
 )
-
