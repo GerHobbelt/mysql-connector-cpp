@@ -79,7 +79,7 @@ if(jdbc_stand_alone)
   )
 
   add_config_option(BUNDLE_DEPENDENCIES BOOL ADVANCED DEFAULT OFF
-    "copy dependencies to install location"
+    "copy dependencies to the install location"
   )
 
 endif(jdbc_stand_alone)
@@ -477,8 +477,12 @@ endif()
 
 
 # additional client-side plugins (if any)
+#
+# Note: The native password authentication plugin is not listed in AUTH_PLUGIN
+# list because its name does not follow the common auth_XXX_client pattern
+#
 
-set(PLUGINS)
+set(PLUGINS mysql_native_password)
 
 # additional bundled dependencies of the client library other than the openssl
 # libraries that are handled separately (in DepFindSSL.cmake)
@@ -490,6 +494,33 @@ set(IGNORED_PLUGINS
   # note: we have our own telemetry code, not using the client library plugin
   telemetry_client
   authentication_fido_client  # note: replaced by webauthn plugin
+  # server-side plugins, starting with authentication ones
+  auth$ auth_socket
+  authentication_ldap_simple$ authentication_pam$ authentication_windows$
+  component_
+  libtest_
+  keyring_
+  semisync_
+  adt_null
+  audit_log
+  conflicting_variables
+  connection_control
+  data_masking
+  firewall
+  locking_service
+  mypluglib
+  mysql_clone
+  mysql_no_login
+  thread_pool
+  validate_password
+  version_token
+  ha_
+  qa_
+  .*replication
+  .*rewrite
+  .*example
+  .*test
+  .*mecab
 )
 
 set(IGNORED_LIBS
@@ -651,11 +682,7 @@ macro(bundle_plugins ignored)
 
     get_filename_component(lib_name ${lib} NAME_WE)
 
-    if(NOT lib_name MATCHES "_client")
-      continue()
-    endif()
-
-    #message("== looking at client-side plugin: ${lib_name}")
+    #message("== looking at plugin: ${lib_name}")
 
     # Match plugin name against names in PLUGINS list and in case of match
     # remove that name from the list
@@ -761,8 +788,10 @@ if(BUNDLE_DEPENDENCIES)
   # add authentication plugins to the list of plugins
 
   foreach(auth ${AUTH_PLUGINS})
-    set(plugin "authentication_${auth}")
+    set(plugin "authentication_${auth}_client")
     list(APPEND PLUGINS ${plugin})
+    # Note: ignore server-side plugin
+    list(APPEND IGNORED_PLUGINS "authentication_${auth}$")
     set(DEPS_${plugin} ${AUTH_DEPS_${auth}})
     list(APPEND IGNORED_LIBS ${DEPS_${plugin}})
   endforeach()
@@ -775,7 +804,18 @@ if(BUNDLE_DEPENDENCIES)
   if(MAINTAINER_MODE)
 
     foreach(plugin ${PLUGINS})
-      message(SEND_ERROR "known client-side plugin not found and not bundled: ${plugin}")
+
+      # Note: In some RE builds we use a modified build of the client library
+      # which does not ship the native password authentication plugin but has
+      # it built-in. Therefore we don't complain if the plugin was not found
+      # assuming that in this case it is built-in and needs not to be bundled.
+
+      if(NOT plugin STREQUAL "mysql_native_password")
+        message(SEND_ERROR
+          "known client-side plugin not found and not bundled: ${plugin}"
+        )
+      endif()
+
     endforeach()
 
     foreach(plugin ${IGNORED_PLUGINS})
