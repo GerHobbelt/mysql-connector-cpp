@@ -214,12 +214,17 @@ mkdir -p %{buildroot}%{plugin_dir}
 mv -v %{buildroot}%{_libdir}/plugin/*  %{buildroot}%{plugin_dir}
 rm -rf %{buildroot}%{_libdir}/{plugin,private}
 
+%pretrans devel
+test -L /usr/include/mysql-cppconn && rm -f /usr/include/mysql-cppconn
 
-%post -p /sbin/ldconfig
+%post
+/sbin/ldconfig
 
-%postun -p /sbin/ldconfig
+%postun
+/sbin/ldconfig
 
-%post jdbc -p /sbin/ldconfig
+%post jdbc
+/sbin/ldconfig
 
 %postun jdbc
 /sbin/ldconfig
