@@ -73,6 +73,10 @@ SET(PROTO_SRC_DIR  "${PROJECT_SOURCE_DIR}/protobuf-3.19.6")
 enable_pic()
 enable_cxx17()
 
+if(WERROR)
+  add_compile_options(${WERROR})
+endif()
+
 # -O3 using GCC on SPARC leds to segfault on protoc
 if(SPARC AND GCC)
   foreach(LANG C CXX)
@@ -90,12 +94,22 @@ endif()
 
 set_visibility(hidden)
 
-if(NOT TOOLSET_MSVC AND NOT APPLE)
-  add_compile_options(-Wno-stringop-overflow -Wno-stringop-overread)
+if(GCC AND GCC VERSION_GREATER 11)
+  # See: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=106199
+  set_compiler_flag(-Wno-stringop-overflow)
+  set_compiler_flag(-Wno-stringop-overread)
+endif()
+
+if(NOT MSVC OR CLANG)
+  set_compiler_flag(-Wno-unused-const-variable)
+endif()
+
+if(WIN32)
+  add_compile_definitions(_CRT_SECURE_NO_WARNINGS _SCL_SECURE_NO_WARNINGS)
 endif()
 
 if(APPLE)
-  add_compile_options(-Wno-deprecated-declarations)
+  set_compiler_flag(-Wno-deprecated-declarations)
 endif()
 
 
