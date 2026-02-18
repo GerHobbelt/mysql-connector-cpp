@@ -54,7 +54,7 @@
 %global lib_base_name  libmysqlcppconnx@ABI_VERSION_MAJOR@
 %global lib_base_name_jdbc libmysqlcppconn@JDBC_ABI_VERSION_MAJOR@
 
-# TODO: use %rpmversion if available, note that it is in the format X.Y.Z.Y
+# TODO: use rpmversion if available, note that it is in the format X.Y.Z.Y
 # and the current logic requires numeric format XYYZZ.
 
 %global rpm_ver_num @RPM_VER_NUM@
@@ -140,6 +140,11 @@ to develop MySQL client applications in C++.
 SRC=`pwd`
 SRC1=%{name}-8.4.0-src
 
+# Note: Remove options related to warnings that are set by RPM tools because
+# our build system handles warning reporting levels.
+
+%global optflags %(echo %{optflags} | sed -e 's/-Wall//' -e 's/-Werror=[^ ]*//g')
+
 cd ${RPM_BUILD_DIR}
 
 %if 0%{?with_compat}
@@ -168,8 +173,9 @@ cd ${RPM_BUILD_DIR}
 
 # Note: use relative paths for CMAKE_INSTALL_XXX options
 
-%global __cmake_common_opts -DCMAKE_BUILD_TYPE=RelWithDebInfo  -DCMAKE_INSTALL_LIBDIR=.%{_libdir} -DCMAKE_INSTALL_INCLUDEDIR=.%{_includedir}/mysql-cppconn -DWITH_SSL=system -DDEFAULT_PLUGIN_DIR=%{plugin_dir} -DWITH_JDBC=1 -DMYSQLCLIENT_STATIC_LINKING=1 -DBUNDLE_DEPENDENCIES=1 %{?mysql_opt} %{__cmake_test_opts} -DDEBUG_PREFIX_MAP=OFF
+%global __cmake_common_opts -DCMAKE_BUILD_TYPE=RelWithDebInfo  -DCMAKE_INSTALL_LIBDIR=.%{_libdir} -DCMAKE_INSTALL_INCLUDEDIR=.%{_includedir}/mysql-cppconn -DWITH_SSL=system -DDEFAULT_PLUGIN_DIR=%{plugin_dir} -DWITH_JDBC=1 -DMYSQLCLIENT_STATIC_LINKING=1 -DBUNDLE_DEPENDENCIES=1 %{?mysql_opt} -DDEBUG_PREFIX_MAP=OFF
 %global __cmake_config %{cmake_cmd} %{__cmake_common_opts} %{__cmake_explicit_opts}
+%global __cmake_config_with_tests %{__cmake_config} %{__cmake_test_opts}
 
 %if 0%{?with_compat}
 rm -rf build-compat && mkdir build-compat
@@ -178,11 +184,11 @@ rm -rf build-compat && mkdir build-compat
 %endif
 
 rm -rf build-static && mkdir build-static
-%{__cmake_config} -S ${SRC} -B build-static -DBUILD_STATIC=1
+%{__cmake_config_with_tests} -S ${SRC} -B build-static -DBUILD_STATIC=1
 %{cmake_cmd} --build build-static --verbose
 
 rm -rf build-dynamic && mkdir build-dynamic
-%{__cmake_config} -S ${SRC} -B build-dynamic -DBUILD_STATIC=0
+%{__cmake_config_with_tests} -S ${SRC} -B build-dynamic -DBUILD_STATIC=0
 %{cmake_cmd} --build build-dynamic --verbose
 
 
@@ -275,6 +281,10 @@ test -L /usr/include/mysql-cppconn && rm -f /usr/include/mysql-cppconn || true
 ###############################################
 
 %changelog
+
+* Tue Jul 22 2025 Rafal Somla <rafal.somla@oracle.com> - 9.4.0-1
+- Fix warnings control flags
+- Do not include tests when building -compat package
 
 * Thu Sep 12 2024 Rafal Somla <rafal.somla@oracle.com> - 9.1.0-1
 - Add definitions for -compat package (WL#16462)
