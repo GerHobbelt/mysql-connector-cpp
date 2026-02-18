@@ -28,14 +28,14 @@
 
 # Note: To be used in copyright notes of generated files
 
-set(COPYRIGHT_YEAR "2025" CACHE INTERNAL "version info")
+set(COPYRIGHT_YEAR "2026" CACHE INTERNAL "version info")
 
 #
 # Connector/C++ version
 #
 
 set(CONCPP_VERSION_MAJOR  9 CACHE INTERNAL "version info")
-set(CONCPP_VERSION_MINOR  5 CACHE INTERNAL "version info")
+set(CONCPP_VERSION_MINOR  6 CACHE INTERNAL "version info")
 set(CONCPP_VERSION_MICRO  0 CACHE INTERNAL "version info")
 # Level is "-alpha", "-beta", empty if GA
 set(CONCPP_VERSION_LEVEL  "" CACHE INTERNAL "version info")
